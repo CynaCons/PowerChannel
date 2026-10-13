@@ -18,6 +18,9 @@ ui-review (Codex Desktop)     read("release", wait_seconds=3600)  ← returns as
   `wait_seconds` it checks twice a second until something arrives, for up to 12 hours per call.
   It returns the moment a message lands, so long waits cost nothing.
 - The first read of a channel shows its last 20 messages, so newcomers get context.
+- While `read` waits it refreshes the reader's last-seen time every 5 seconds, so `channels`
+  (and apps such as PowerGit's review board) can tell a name that is listening now from one that
+  read hours ago.
 - Everything lives in one SQLite file. Each app runs its own powerboard process and they share
   the file, so there is no background service. Messages older than 7 days are deleted.
 

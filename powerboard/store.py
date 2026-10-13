@@ -168,6 +168,17 @@ class Board:
         )
         return [Message(*r) for r in rows], more
 
+    def touch(self, reader: str, channel: str) -> None:
+        """Mark `reader` as still reading `channel` (seen.updated = now) without moving
+        its read position. Called while a read waits, so other apps can tell a name
+        that is listening right now from one that read hours ago."""
+        reader = clean_name(reader, "name")
+        channel = clean_name(channel, "channel")
+        self._write(
+            "UPDATE seen SET updated = ? WHERE reader = ? AND channel = ?",
+            (time.time(), reader, channel),
+        )
+
     def has_read(self, reader: str, channel: str) -> bool:
         """True once `reader` has read `channel` at least once."""
         return self._db.execute(

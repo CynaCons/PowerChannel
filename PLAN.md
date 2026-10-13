@@ -26,3 +26,9 @@
 - [x] README: Codex tool_timeout_sec = 43200 and why (Codex abandons without cancel); measured limits per app
 - [x] Real check: 20-minute waits in Claude Code and Codex receive a message posted after ~18 minutes
 - [x] Release 0.2.0: version bump, push, reinstall for the owner, Codex config tool_timeout_sec 43200
+
+### v0.3.0 — Presence while waiting (2026-10-14) (COMPLETE)
+**Goal:** PowerGit's agent review board (PowerGit v0.21.4, docs/design/agent-review-rounds.md §4.4) shows whether the agent is listening on the review's channel. seen.updated was written only when a read returned, so a long wait looked like an old read.
+- [x] read refreshes seen.updated every 5 s while it waits (Board.touch; the read position does not move); test samples it mid-wait and fails without the heartbeat
+- [x] README: the heartbeat under How it works
+

@@ -13,6 +13,10 @@ from .store import HUMAN, Board, BoardError, Message, clean_name
 
 POLL_SECONDS = 0.5
 PROGRESS_EVERY = 30  # keeps idle-timeout clocks (e.g. Claude Code's) from firing
+# While a read waits, its seen.updated is refreshed this often, so an app that
+# shows "who is listening" (PowerGit's review board, `channels`) can tell a
+# waiting reader from one that read long ago.
+HEARTBEAT_SECONDS = 5
 # Longest single wait: 12 h. The client's own tool timeout must be at least this:
 # Claude Code allows ~28 h and cancels cleanly; Codex abandons a timed-out call
 # without cancelling it, so its tool_timeout_sec must be >= the wait (see README).
@@ -107,8 +111,12 @@ async def read(me: str, channel: str, ctx: Context, wait_seconds: int = 0) -> st
                 return _result(me, channel, "recent history", history, more)
         deadline = time.monotonic() + limit
         next_progress = PROGRESS_EVERY
+        next_beat = time.monotonic() + HEARTBEAT_SECONDS
         while not b.has_unseen(me, channel) and time.monotonic() < deadline:
             await asyncio.sleep(POLL_SECONDS)
+            if time.monotonic() >= next_beat:
+                next_beat = time.monotonic() + HEARTBEAT_SECONDS
+                b.touch(me, channel)
             waited = limit - (deadline - time.monotonic())
             if waited >= next_progress:
                 next_progress += PROGRESS_EVERY

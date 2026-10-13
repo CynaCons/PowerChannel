@@ -50,6 +50,28 @@ def test_read_waits_for_a_post_from_another_process(db_path):
     assert 1.0 < elapsed < 8
 
 
+def test_a_waiting_reader_keeps_its_seen_time_fresh(db_path, monkeypatch):
+    import sqlite3
+    import threading
+
+    monkeypatch.setattr(server, "MAX_WAIT", 3)
+    monkeypatch.setattr(server, "HEARTBEAT_SECONDS", 0.5)
+    call("post", me="a", channel="c", message="hello")
+    call("read", me="w", channel="c")  # reads the history, sets last_id
+    probe = sqlite3.connect(db_path)
+    row = lambda: probe.execute(  # noqa: E731
+        "SELECT last_id, updated FROM seen WHERE reader = 'w' AND channel = 'c'").fetchone()
+    last_id, started = row()
+    waiting = threading.Thread(target=lambda: call("read", me="w", channel="c", wait_seconds=3))
+    waiting.start()
+    time.sleep(1.8)
+    during = row()  # sampled while the read is still waiting
+    waiting.join(timeout=10)
+    probe.close()
+    assert during[0] == last_id  # the read position did not move
+    assert during[1] > started + 1.0  # refreshed during the wait
+
+
 def test_wait_times_out_quietly(db_path, monkeypatch):
     monkeypatch.setattr(server, "MAX_WAIT", 1)
     call("read", me="w", channel="quiet")
