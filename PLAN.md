@@ -36,7 +36,7 @@
 **Goal:** Rename powerboard to PowerChannel ("PowerBoard" now names a separate task-board app): new package/CLI `powerchannel`, new MCP server name and env vars, data folder with automatic migration of the old board.db, and compatibility kept for one version.
 - [x] Code: package, CLI, MCP server name, env vars, data folder + legacy migration
 - [x] Docs: README upgrade guide
-- [ ] GitHub repo renamed to CynaCons/PowerChannel
-- [ ] Owner configs switched (Claude Code, Codex, Cursor)
-- [ ] PowerGit reads the new database path
+- [x] GitHub repo renamed to CynaCons/PowerChannel
+- [x] Owner configs switched (Claude Code, Codex, Cursor)
+- [x] PowerGit reads the new database path
 
