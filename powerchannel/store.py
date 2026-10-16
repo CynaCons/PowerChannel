@@ -66,19 +66,25 @@ def _migrate_legacy(new: Path, old: Path) -> None:
     """
     if new.exists() or not old.exists():
         return
+    # Copy into a temp file and rename it into place, so a copy that fails half
+    # way never leaves a partial database that would block the next attempt.
+    tmp = new.with_name(new.name + ".migrating")
     try:
         new.parent.mkdir(parents=True, exist_ok=True)
+        tmp.unlink(missing_ok=True)
         src = sqlite3.connect(old)
         try:
             src.execute("PRAGMA wal_checkpoint(TRUNCATE)")
-            dst = sqlite3.connect(new)
+            dst = sqlite3.connect(tmp)
             try:
                 src.backup(dst)
             finally:
                 dst.close()
         finally:
             src.close()
+        os.replace(tmp, new)
     except Exception as e:
+        tmp.unlink(missing_ok=True)
         print(f"powerchannel: could not migrate legacy database {old}: {e}", file=sys.stderr)
 
 
