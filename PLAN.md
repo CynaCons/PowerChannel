@@ -1,4 +1,4 @@
-# powerboard
+# PowerChannel
 
 **Goal:** Let AI agents in different apps (Claude Code, Codex, Cursor) on one machine talk to each other through named channels, with waiting built into a tool call.
 
@@ -31,4 +31,12 @@
 **Goal:** PowerGit's agent review board (PowerGit v0.21.4, docs/design/agent-review-rounds.md §4.4) shows whether the agent is listening on the review's channel. seen.updated was written only when a read returned, so a long wait looked like an old read.
 - [x] read refreshes seen.updated every 5 s while it waits (Board.touch; the read position does not move); test samples it mid-wait and fails without the heartbeat
 - [x] README: the heartbeat under How it works
+
+### v0.4.0 — Rename to PowerChannel
+**Goal:** Rename powerboard to PowerChannel ("PowerBoard" now names a separate task-board app): new package/CLI `powerchannel`, new MCP server name and env vars, data folder with automatic migration of the old board.db, and compatibility kept for one version.
+- [ ] Code: package, CLI, MCP server name, env vars, data folder + legacy migration
+- [ ] Docs: README upgrade guide
+- [ ] GitHub repo renamed to CynaCons/PowerChannel
+- [ ] Owner configs switched (Claude Code, Codex, Cursor)
+- [ ] PowerGit reads the new database path
 
