@@ -2,8 +2,8 @@ import time
 
 import pytest
 
-from powerboard import store
-from powerboard.store import Board, BoardError
+from powerchannel import store
+from powerchannel.store import Board, BoardError
 
 
 def texts(messages):

@@ -1,4 +1,4 @@
-"""Command line: `powerboard` (MCP server), plus channels / tail / post for the human."""
+"""Command line: `powerchannel` (MCP server), plus channels / tail / post for the human."""
 
 from __future__ import annotations
 
@@ -15,8 +15,8 @@ def _line(m) -> str:
 
 
 def main(argv: list[str] | None = None) -> None:
-    parser = argparse.ArgumentParser(prog="powerboard", description=__doc__)
-    parser.add_argument("--version", action="version", version=f"powerboard {__version__}")
+    parser = argparse.ArgumentParser(prog="powerchannel", description=__doc__)
+    parser.add_argument("--version", action="version", version=f"powerchannel {__version__}")
     sub = parser.add_subparsers(dest="cmd")
     sub.add_parser("serve", help="run the MCP server over stdio (the default)")
     sub.add_parser("channels", help="list channels and who is active")
@@ -68,3 +68,10 @@ def main(argv: list[str] | None = None) -> None:
         pass
     finally:
         board.close()
+
+
+def main_deprecated(argv: list[str] | None = None) -> None:
+    """Deprecated `powerboard` entry point: warn, then run the real CLI."""
+    print("powerboard was renamed powerchannel; use the powerchannel command.",
+          file=sys.stderr)
+    main(argv)

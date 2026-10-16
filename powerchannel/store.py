@@ -1,7 +1,7 @@
 """
-The board: one SQLite file shared by every powerboard process on this machine.
+The board: one SQLite file shared by every powerchannel process on this machine.
 
-Each app (Claude Code, Codex, Cursor, ...) starts its own powerboard server;
+Each app (Claude Code, Codex, Cursor, ...) starts its own powerchannel server;
 they all open the same database file, so there is no daemon to run.
 """
 
@@ -36,18 +36,56 @@ class Message:
     created: float
 
 
+def _data_base() -> Path:
+    """The per-user local data folder for this platform."""
+    if sys.platform == "win32":
+        return Path(os.environ.get("LOCALAPPDATA") or Path.home() / "AppData" / "Local")
+    if sys.platform == "darwin":
+        return Path.home() / "Library" / "Application Support"
+    return Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local" / "share")
+
+
 def default_db_path() -> Path:
-    """POWERBOARD_DB, else the per-user local data folder."""
-    override = os.environ.get("POWERBOARD_DB")
+    """POWERCHANNEL_DB (or the legacy POWERBOARD_DB), else the per-user local data folder."""
+    override = os.environ.get("POWERCHANNEL_DB") or os.environ.get("POWERBOARD_DB")
     if override:
         return Path(override)
-    if sys.platform == "win32":
-        base = Path(os.environ.get("LOCALAPPDATA") or Path.home() / "AppData" / "Local")
-    elif sys.platform == "darwin":
-        base = Path.home() / "Library" / "Application Support"
-    else:
-        base = Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local" / "share")
-    return base / "powerboard" / "board.db"
+    base = _data_base()
+    new_path = base / "powerchannel" / "channels.db"
+    _migrate_legacy(new_path, base / "powerboard" / "board.db")
+    return new_path
+
+
+def _migrate_legacy(new: Path, old: Path) -> None:
+    """One-time copy of a legacy powerboard database to the new powerchannel location.
+
+    Copies only when the new file is missing and the old one exists. The legacy
+    file is read (checkpointed) and copied with the sqlite backup API; it is never
+    deleted or modified. Any failure is reported and ignored, so the server still
+    starts on an empty new database.
+    """
+    if new.exists() or not old.exists():
+        return
+    # Copy into a temp file and rename it into place, so a copy that fails half
+    # way never leaves a partial database that would block the next attempt.
+    tmp = new.with_name(new.name + ".migrating")
+    try:
+        new.parent.mkdir(parents=True, exist_ok=True)
+        tmp.unlink(missing_ok=True)
+        src = sqlite3.connect(old)
+        try:
+            src.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+            dst = sqlite3.connect(tmp)
+            try:
+                src.backup(dst)
+            finally:
+                dst.close()
+        finally:
+            src.close()
+        os.replace(tmp, new)
+    except Exception as e:
+        tmp.unlink(missing_ok=True)
+        print(f"powerchannel: could not migrate legacy database {old}: {e}", file=sys.stderr)
 
 
 def clean_name(value: str, what: str) -> str:

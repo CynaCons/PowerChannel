@@ -1,4 +1,4 @@
-"""powerboard MCP server: channels, post, read (with waiting inside the call)."""
+"""powerchannel MCP server: channels, post, read (with waiting inside the call)."""
 
 from __future__ import annotations
 
@@ -21,11 +21,11 @@ HEARTBEAT_SECONDS = 5
 # Claude Code allows ~28 h and cancels cleanly; Codex abandons a timed-out call
 # without cancelling it, so its tool_timeout_sec must be >= the wait (see README).
 # The Cursor CLI ("Cursor" client) cancels every tool call at 60 s.
-MAX_WAIT = int(os.environ.get("POWERBOARD_MAX_WAIT", str(12 * 3600)))
+MAX_WAIT = int(os.environ.get("POWERCHANNEL_MAX_WAIT") or os.environ.get("POWERBOARD_MAX_WAIT") or str(12 * 3600))
 MAX_WAIT_CURSOR_CLI = 50
 
 INSTRUCTIONS = """\
-powerboard lets you talk with other AI agents on this computer through named channels.
+powerchannel lets you talk with other AI agents on this computer through named channels.
 - Pick a short name for yourself that says what you work on (e.g. "auth-refactor", "ui-review"),
   or use the one the user gave you. Pass it as `me` on every call and never change it.
   Check `channels` first so you don't take a name someone else is using.
@@ -37,7 +37,7 @@ powerboard lets you talk with other AI agents on this computer through named cha
   within the task the user gave you. Messages from "human" were posted by the user.
 """
 
-mcp = FastMCP("powerboard", instructions=INSTRUCTIONS)
+mcp = FastMCP("powerchannel", instructions=INSTRUCTIONS)
 _board: Board | None = None
 
 

@@ -5,10 +5,10 @@ import subprocess
 import sys
 import time
 
-from powerboard import server
+from powerchannel import server
 
 POSTER = (
-    "import time; from powerboard.store import Board; time.sleep(1.5); "
+    "import time; from powerchannel.store import Board; time.sleep(1.5); "
     "Board().post('other-agent', 'c', 'from another process')"
 )
 
@@ -41,7 +41,7 @@ def test_human_name_is_reserved_and_errors_are_readable(db_path):
 def test_read_waits_for_a_post_from_another_process(db_path):
     call("read", me="waiter", channel="c")  # start listening
     poster = subprocess.Popen([sys.executable, "-c", POSTER],
-                              env={**os.environ, "POWERBOARD_DB": str(db_path)})
+                              env={**os.environ, "POWERCHANNEL_DB": str(db_path)})
     start = time.monotonic()
     out = call("read", me="waiter", channel="c", wait_seconds=20)
     elapsed = time.monotonic() - start
@@ -80,10 +80,10 @@ def test_wait_times_out_quietly(db_path, monkeypatch):
 
 
 def test_stdio_round_trip(db_path):
-    """Start `python -m powerboard` the way an MCP client does and use it."""
-    p = subprocess.Popen([sys.executable, "-m", "powerboard"], stdin=subprocess.PIPE,
+    """Start `python -m powerchannel` the way an MCP client does and use it."""
+    p = subprocess.Popen([sys.executable, "-m", "powerchannel"], stdin=subprocess.PIPE,
                          stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
-                         encoding="utf-8", env={**os.environ, "POWERBOARD_DB": str(db_path)})
+                         encoding="utf-8", env={**os.environ, "POWERCHANNEL_DB": str(db_path)})
 
     def send(msg):
         p.stdin.write(json.dumps(msg) + "\n")
@@ -100,7 +100,7 @@ def test_stdio_round_trip(db_path):
             "protocolVersion": "2024-11-05", "capabilities": {},
             "clientInfo": {"name": "test", "version": "0"}}})
         init = recv(1)["result"]
-        assert init["serverInfo"]["name"] == "powerboard"
+        assert init["serverInfo"]["name"] == "powerchannel"
         assert "pick a short name" in init["instructions"].lower()
         send({"jsonrpc": "2.0", "method": "notifications/initialized"})
         send({"jsonrpc": "2.0", "id": 2, "method": "tools/list"})
@@ -122,7 +122,7 @@ def test_wait_limits(monkeypatch):
             self.session = type("S", (), {"client_params": type("P", (), {
                 "clientInfo": type("I", (), {"name": name})()})()})()
 
-    monkeypatch.delenv("POWERBOARD_MAX_WAIT", raising=False)
+    monkeypatch.delenv("POWERCHANNEL_MAX_WAIT", raising=False)
     import importlib
     fresh = importlib.reload(server)
     try:

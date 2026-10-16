@@ -1,13 +1,13 @@
 import pytest
 
-from powerboard import server
-from powerboard.store import Board
+from powerchannel import server
+from powerchannel.store import Board
 
 
 @pytest.fixture
 def db_path(tmp_path, monkeypatch):
     path = tmp_path / "board.db"
-    monkeypatch.setenv("POWERBOARD_DB", str(path))
+    monkeypatch.setenv("POWERCHANNEL_DB", str(path))
     monkeypatch.setattr(server, "_board", None)
     yield path
     if server._board is not None:

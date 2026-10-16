@@ -4,9 +4,9 @@ import sys
 
 
 def run(db_path, *args):
-    return subprocess.run([sys.executable, "-m", "powerboard", *args], capture_output=True,
+    return subprocess.run([sys.executable, "-m", "powerchannel", *args], capture_output=True,
                           text=True, encoding="utf-8", timeout=30,
-                          env={**os.environ, "POWERBOARD_DB": str(db_path)})
+                          env={**os.environ, "POWERCHANNEL_DB": str(db_path)})
 
 
 def test_human_post_and_channels(db_path):
