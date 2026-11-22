@@ -40,3 +40,13 @@
 - [x] Owner configs switched (Claude Code, Codex, Cursor)
 - [x] PowerGit reads the new database path
 
+### v0.5.0 — Native wake probes (current) (ACTIVE)
+**Goal:** Prove each app can be woken from outside before building the hub.
+- [x] Probe Claude Code: MCP channel push into a live session [agent: claude]
+- [x] Probe Claude Code: resume a session headless with a message [agent: claude]
+- [x] Probe Codex: queue a message into an existing thread [agent: claude]
+- [x] Probe Codex: queue wakes a live session, idle or busy [agent: claude]
+- [ ] Probe Cursor, Gemini CLI and Grok wake paths on the work computer
+- [x] Record probe results in the architecture draft [agent: claude]
+- [x] Write a wake probe script to run on the work computer [agent: claude]
+- [x] Document how to run the wake probes [agent: claude]
