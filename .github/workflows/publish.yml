@@ -11,6 +11,9 @@ on:
 jobs:
   pypi:
     runs-on: ubuntu-latest
+    # Matches a PyPI trusted publisher set to environment "pypi", and also one with no
+    # environment (PyPI then accepts any).
+    environment: pypi
     permissions:
       id-token: write
     steps:

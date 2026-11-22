@@ -438,7 +438,8 @@ def cursor_stop_hook(work: Path) -> None:
     """
     inbox, offset, state = work / "inbox.txt", work / "inbox.offset", work / "hook.json"
     try:
-        info = json.loads(sys.stdin.read() or "{}")
+        # Cursor Desktop on Windows prefixes the hook input with a UTF-8 byte-order mark.
+        info = json.loads(sys.stdin.buffer.read().decode("utf-8-sig", errors="replace") or "{}")
     except ValueError:
         info = {}
     state.write_text(json.dumps({k: info.get(k) for k in ("conversation_id", "transcript_path", "loop_count")}),

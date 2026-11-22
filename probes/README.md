@@ -57,5 +57,8 @@ end and is then answered.
   model Cursor's Free plan includes). Codex, Gemini and Grok use each app's default model.
 - Each background Cursor call takes about 20 seconds end to end. One resume hung for minutes in
   an early run, for no reason we found; the script now times it out instead of hanging.
-- Cursor Desktop isn't covered by the script. Cursor documents the same hooks for its IDE agent
-  chats.
+- Cursor Desktop isn't covered by the script; it was tested by hand on 2026-11-22. A user-wide
+  stop hook in `~/.cursor/hooks.json` woke a chat in the Agents window, idle and busy, the same
+  way as the CLI. Two differences: Desktop reads project hooks only for an open folder (Agents
+  window chats often have none, so use the user-wide file), and on Windows it prefixes the hook
+  input with a UTF-8 byte-order mark, so parse it as `utf-8-sig`.

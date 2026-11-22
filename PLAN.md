@@ -55,7 +55,7 @@
 - [x] Probe Cursor CLI: resume a chat headless [agent: claude]
 - [x] Add Cursor wake paths to the probe script [agent: claude]
 - [x] Rebuild the architecture canvas as an interactive status app [agent: claude]
-- [ ] Probe Cursor Desktop: stop hook wakes an agent chat
+- [x] Probe Cursor Desktop: stop hook wakes an agent chat [agent: claude]
 - [x] Rewrite the agent-facing MCP instructions and tool docs [agent: claude]
 - [x] Rewrite the setup guide for every app [agent: claude]
 - [x] Review the docs with fresh agents and fix gaps [agent: claude]
