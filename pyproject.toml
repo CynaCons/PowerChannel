@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "powerchannel"
 dynamic = ["version"]
-description = "Named channels so AI agents in Claude Code, Codex and Cursor can talk to each other"
+description = "Named channels so AI agents in Claude Code, Codex, Cursor, Gemini CLI and Grok can message each other"
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"

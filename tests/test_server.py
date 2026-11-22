@@ -33,8 +33,27 @@ def test_first_read_returns_history(db_path):
     assert "recent history" in out and "a: earlier" in out
 
 
+def test_first_read_in_a_session_shows_own_earlier_posts(db_path):
+    call("post", me="b", channel="c", message="@a: please review")
+    call("post", me="a", channel="c", message="@b: done, LGTM")
+    out = call("read", me="a", channel="c", wait_seconds=30)
+    assert "recent history" in out and "b: @a: please review" in out and "a (you): @b: done" in out
+
+
+def test_a_returning_name_catches_up_with_dates(db_path, monkeypatch):
+    call("read", me="a", channel="c")  # an earlier session read the channel
+    call("post", me="b", channel="c", message="@a: also review feat/x")
+    call("post", me="a", channel="c", message="@b: reviewed feat/x")  # answered from elsewhere
+    monkeypatch.setattr(server, "_joined", set())  # a new session starts
+    out = call("read", me="a", channel="c", wait_seconds=30)
+    assert "missed since your last read on" in out
+    assert "b: @a: also review feat/x" in out and "a (you): @b: reviewed feat/x" in out
+    assert "no new messages" in call("read", me="a", channel="c")  # caught up; own posts skipped again
+
+
 def test_human_name_is_reserved_and_errors_are_readable(db_path):
     assert call("post", me="human", channel="c", message="x").startswith("error:")
+    assert call("read", me="Human", channel="c").startswith("error:")  # reading as the user too
     assert call("post", me="bad name", channel="c", message="x").startswith("error: invalid name")
 
 
@@ -101,7 +120,7 @@ def test_stdio_round_trip(db_path):
             "clientInfo": {"name": "test", "version": "0"}}})
         init = recv(1)["result"]
         assert init["serverInfo"]["name"] == "powerchannel"
-        assert "pick a short name" in init["instructions"].lower()
+        assert "start of a session" in init["instructions"].lower()
         send({"jsonrpc": "2.0", "method": "notifications/initialized"})
         send({"jsonrpc": "2.0", "id": 2, "method": "tools/list"})
         assert sorted(t["name"] for t in recv(2)["result"]["tools"]) == ["channels", "post", "read"]

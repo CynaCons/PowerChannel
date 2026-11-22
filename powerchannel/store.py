@@ -93,8 +93,8 @@ def clean_name(value: str, what: str) -> str:
     name = (value or "").strip().lower()
     if not _NAME_RE.match(name):
         raise BoardError(
-            f"invalid {what} {value!r}: use 1-64 lowercase letters, digits, '.', '_' or '-' "
-            f"(e.g. 'auth-refactor')"
+            f"invalid {what} {value!r}: use 1-64 lowercase letters, digits, '.', '_' or '-', "
+            f"starting with a letter or digit (e.g. 'auth-refactor')"
         )
     return name
 
@@ -167,22 +167,24 @@ class Board:
 
     # -- reading ---------------------------------------------------------
 
-    def read_new(self, reader: str, channel: str) -> tuple[list[Message], bool]:
-        """Messages on `channel` that `reader` has not seen, excluding its own.
+    def read_new(self, reader: str, channel: str, include_own: bool = False) -> tuple[list[Message], bool]:
+        """Messages on `channel` that `reader` has not seen, excluding its own unless
+        `include_own` (used when catching up, so a reader can see what it already answered).
 
         Marks them seen. The first read of a channel returns its recent backlog.
         Returns (messages, more_pending).
         """
         reader = clean_name(reader, "name")
         channel = clean_name(channel, "channel")
+        own = "" if include_own else "AND author != ? "
         row = self._db.execute(
             "SELECT last_id FROM seen WHERE reader = ? AND channel = ?", (reader, channel)
         ).fetchone()
         if row is None:
             rows = self._db.execute(
                 "SELECT id, channel, author, text, created FROM messages "
-                "WHERE channel = ? AND author != ? ORDER BY id DESC LIMIT ?",
-                (channel, reader, FIRST_READ_BACKLOG),
+                f"WHERE channel = ? {own}ORDER BY id DESC LIMIT ?",
+                (channel, FIRST_READ_BACKLOG) if include_own else (channel, reader, FIRST_READ_BACKLOG),
             ).fetchall()[::-1]
             newest = self._db.execute(
                 "SELECT COALESCE(MAX(id), 0) FROM messages WHERE channel = ?", (channel,)
@@ -197,7 +199,8 @@ class Board:
             more = len(rows) > READ_BATCH
             rows = rows[:READ_BATCH]
             newest = rows[-1][0] if rows else row[0]
-            rows = [r for r in rows if r[2] != reader]
+            if not include_own:
+                rows = [r for r in rows if r[2] != reader]
         self._write(
             "INSERT INTO seen (reader, channel, last_id, updated) VALUES (?, ?, ?, ?) "
             "ON CONFLICT (reader, channel) DO UPDATE SET last_id = excluded.last_id, "
@@ -216,6 +219,14 @@ class Board:
             "UPDATE seen SET updated = ? WHERE reader = ? AND channel = ?",
             (time.time(), reader, channel),
         )
+
+    def last_read(self, reader: str, channel: str) -> float | None:
+        """When `reader` last read (or was waiting on) `channel`, or None if never."""
+        row = self._db.execute(
+            "SELECT updated FROM seen WHERE reader = ? AND channel = ?",
+            (clean_name(reader, "name"), clean_name(channel, "channel")),
+        ).fetchone()
+        return row[0] if row else None
 
     def has_read(self, reader: str, channel: str) -> bool:
         """True once `reader` has read `channel` at least once."""
