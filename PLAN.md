@@ -59,4 +59,4 @@
 - [x] Rewrite the agent-facing MCP instructions and tool docs [agent: claude]
 - [x] Rewrite the setup guide for every app [agent: claude]
 - [x] Review the docs with fresh agents and fix gaps [agent: claude]
-- [ ] Push to GitHub and publish the MCP server
+- [x] Push to GitHub and publish the MCP server [agent: claude]
