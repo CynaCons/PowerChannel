@@ -58,15 +58,50 @@ def token(label: str) -> str:
     return f"PCW{secrets.token_hex(3).upper()}{label}"
 
 
-def run(cmd: list[str], cwd: Path | None = None, timeout: int = TURN_WAIT) -> tuple[int, str]:
+def kill_tree(p: subprocess.Popen) -> None:
+    """Kill a process and everything it started (Windows .cmd shims start powershell and node)."""
+    if os.name == "nt":
+        subprocess.run(["taskkill", "/T", "/F", "/PID", str(p.pid)], capture_output=True)
+    else:
+        try:
+            os.killpg(p.pid, 9)
+        except OSError:
+            p.kill()
+
+
+def run(cmd: list[str], cwd: Path | None = None, timeout: int = TURN_WAIT, until=None) -> tuple[int, str]:
+    """Run a command and return (exit code, output).
+
+    With `until`, return as soon as until(output) is true and kill the process tree; some
+    CLIs keep running for a while after printing their result.
+    """
     try:
-        p = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, encoding="utf-8",
-                           errors="replace", timeout=timeout, stdin=subprocess.DEVNULL)
-        return p.returncode, (p.stdout or "") + (p.stderr or "")
-    except subprocess.TimeoutExpired:
-        return -1, f"timed out after {timeout}s"
+        p = subprocess.Popen(cmd, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                             stdin=subprocess.DEVNULL, text=True, encoding="utf-8", errors="replace",
+                             start_new_session=os.name != "nt")
     except OSError as e:
         return -1, str(e)
+    chunks: list[str] = []
+    reader = threading.Thread(target=lambda: chunks.extend(iter(p.stdout.readline, "")), daemon=True)
+    reader.start()
+    end, matched = time.monotonic() + timeout, False
+    while p.poll() is None:
+        if until and until("".join(chunks)):
+            matched = True
+            break
+        if time.monotonic() >= end:
+            chunks.append(f"\ntimed out after {timeout}s")
+            break
+        time.sleep(0.2)
+    if p.poll() is None:
+        kill_tree(p)
+    reader.join(2)
+    rc = 0 if matched else (p.returncode if p.returncode is not None else -1)
+    return rc, "".join(chunks)
+
+
+def cursor_done(text: str) -> bool:
+    return '"type":"result"' in text.replace(" ", "")
 
 
 def tail(text: str, n: int = 2) -> str:
@@ -392,29 +427,152 @@ def cursor_cli() -> str | None:
     return None
 
 
+HOOK_WAIT = 900  # seconds the probe stop hook waits for a message before letting the turn end
+
+
+def cursor_stop_hook(work: Path) -> None:
+    """Cursor stop hook: wait for the next inbox line and return it as followup_message.
+
+    Cursor submits a non-empty followup_message as the next user message, so this wakes
+    the session without another agent. stdout carries only the JSON answer.
+    """
+    inbox, offset, state = work / "inbox.txt", work / "inbox.offset", work / "hook.json"
+    try:
+        info = json.loads(sys.stdin.read() or "{}")
+    except ValueError:
+        info = {}
+    state.write_text(json.dumps({k: info.get(k) for k in ("conversation_id", "transcript_path", "loop_count")}),
+                     encoding="utf-8")
+    inbox.touch()
+    pos = int(offset.read_text()) if offset.exists() else 0
+    answer: dict = {}
+    end = time.monotonic() + HOOK_WAIT
+    while time.monotonic() < end and not answer:
+        if inbox.stat().st_size > pos:
+            with open(inbox, encoding="utf-8") as f:
+                f.seek(pos)
+                line = f.readline()
+                pos = f.tell()
+            if line.strip():
+                answer = {"followup_message": line.strip()}
+        else:
+            time.sleep(0.5)
+    offset.write_text(str(pos))
+    sys.stdout.write(json.dumps(answer))
+    sys.stdout.flush()
+
+
+def wait_line(path: Path) -> None:
+    """Print the next line appended to `path`, then exit (for the watched-shell probe)."""
+    path.touch()
+    pos = path.stat().st_size
+    print("waiting for a PowerChannel message...", flush=True)
+    while True:
+        if path.stat().st_size > pos:
+            with open(path, encoding="utf-8") as f:
+                f.seek(pos)
+                line = f.readline().strip()
+            if line:
+                print("POWERCHANNEL MESSAGE: " + line, flush=True)
+                return
+        time.sleep(0.5)
+
+
+def cursor_transcript_with(tok: str, since: float) -> Path | None:
+    base = Path.home() / ".cursor" / "projects"
+    for p in base.glob("*/agent-transcripts/*/*.jsonl"):
+        try:
+            if p.stat().st_mtime >= since and reply_at(p, tok) is not None:
+                return p
+        except OSError:
+            continue
+    return None
+
+
 def probe_cursor(args) -> None:
     exe = cursor_cli()
     if not exe:
-        record("cursor", "installed", "skip", "no Cursor CLI (cursor-agent) on PATH")
+        record("cursor", "installed", "skip", "no Cursor CLI (cursor-agent or agent) on PATH")
         return
     record("cursor", "installed", "info", tail(run([exe, "--version"], timeout=60)[1], 1))
+    model = ["--model", args.cursor_model] if args.cursor_model else []
+
+    # Closed chat: resume headless with -p --resume.
     work = Path(tempfile.mkdtemp(prefix="pcw-cursor-"))
+    base = [exe, "-p", "--mode", "ask", "--trust", "--output-format", "json", *model]
     word, ready = token("WORD"), token("READY")
-    rc, out = run([exe, "-p", "--output-format", "json",
-                   f"{NO_TOOLS} Remember the word {word}. Reply with exactly {ready}"], cwd=work)
-    m = re.search(r'"(?:session_id|sessionId|chatId|chat_id)"\s*:\s*"([^"]+)"', out)
+    rc, out = run(base + [f"{NO_TOOLS} Remember the word {word}. Reply with exactly {ready}"], cwd=work,
+                  until=cursor_done)
+    m = re.search(r'"session_id"\s*:\s*"([^"]+)"', out)
     if ready not in out or not m:
         record("cursor", "first headless turn", "fail", tail(out))
+    else:
+        chat = m.group(1)
+        resumed = token("RESUMED")
+        rc, out = run(base + ["--resume", chat,
+                              f"{NO_TOOLS} Reply with {resumed} followed by the word I asked you to remember."],
+                      cwd=work, until=cursor_done)
+        ok = resumed in out and word in out
+        record("cursor", "resume a closed chat (-p --resume)", "pass" if ok else "fail",
+               "replied with context kept" if ok else tail(out))
+    if args.skip_live:
+        record("cursor", "wake a live session (stop hook, watched shell)", "skip", "--skip-live")
         return
-    chat = m.group(1)
-    record("cursor", "first headless turn", "pass", f"chat {chat}")
-    resumed = token("RESUMED")
-    rc, out = run([exe, "-p", "--resume", chat,
-                   f"{NO_TOOLS} Reply with {resumed} followed by the word I asked you to remember."], cwd=work)
-    ok = resumed in out and word in out
-    record("cursor", "resume the chat headless", "pass" if ok else "fail",
-           "replied with context kept" if ok else tail(out))
-    record("cursor", "wake a live IDE chat", "info", "no known outside trigger for IDE chats; not tested")
+
+    # Live session, path 1: a stop hook that returns the next message as followup_message.
+    hook_ws = Path(tempfile.mkdtemp(prefix="pcw-cursor-hook-"))
+    (hook_ws / ".cursor").mkdir()
+    hook_cmd = subprocess.list2cmdline([sys.executable, str(Path(__file__).resolve()), "cursor-stop-hook", str(hook_ws)]) \
+        if os.name == "nt" else shlex.join([sys.executable, str(Path(__file__).resolve()), "cursor-stop-hook", str(hook_ws)])
+    (hook_ws / ".cursor" / "hooks.json").write_text(json.dumps(
+        {"version": 1, "hooks": {"stop": [{"command": hook_cmd, "loop_limit": None, "timeout": HOOK_WAIT + 60}]}},
+        indent=2), encoding="utf-8")
+    first = token("READY")
+    print("\n  Live Cursor CLI session with a probe stop hook:")
+    open_window([exe, "--trust", *model, "--workspace", str(hook_ws),
+                 f"PowerChannel wake probe. {NO_TOOLS} Reply with exactly {first}, then stop."], Path.cwd(), args.spawn)
+    state = hook_ws / "hook.json"
+    hooked = wait_for(lambda: state.exists() and json.loads(state.read_text(encoding="utf-8")).get("transcript_path"),
+                      CONNECT_WAIT)
+    if not hooked:
+        record("cursor", "stop hook runs", "fail", f"the stop hook didn't run within {CONNECT_WAIT}s")
+    else:
+        record("cursor", "stop hook runs", "pass", "the hook ran when the first turn ended")
+        transcript = Path(hooked)
+
+        def push(text: str) -> None:
+            with open(hook_ws / "inbox.txt", "a", encoding="utf-8") as f:
+                f.write(text + "\n")
+
+        check_idle_and_busy("cursor", push, lambda: transcript, "a stop hook followup_message")
+        print("  You can close the probe Cursor window now.")
+
+    # Live session, path 2: the agent watches its own background shell.
+    watch_ws = Path(tempfile.mkdtemp(prefix="pcw-cursor-watch-"))
+    started, woke = token("STARTED"), token("SHELL")
+    waiter = show_command([sys.executable, str(Path(__file__).resolve()), "wait-line", str(watch_ws / "inbox.txt")])
+    since = time.time()
+    print("\n  Live Cursor CLI session watching a background shell:")
+    open_window([exe, "--trust", *model, "--workspace", str(watch_ws),
+                 f"Wake probe. Start this command as a background shell and watch it for output: {waiter} . "
+                 "When it prints a line starting with POWERCHANNEL MESSAGE, follow the instruction in that line. "
+                 f"Run no other commands. After starting the watch, reply {started}."], Path.cwd(), args.spawn)
+    print("  Approve the one background command if Cursor asks.")
+    started_in = wait_for(lambda: cursor_transcript_with(started, since), CONNECT_WAIT)
+    if not started_in:
+        record("cursor", "watched background shell", "fail", f"the agent never replied {started}")
+        return
+    # Wait until the turn has ended, so the reply below proves a wake-up and not the same turn.
+    # Cursor wakes the agent with a "task result" user message when the watched output appears.
+    wait_for(lambda: '"turn_ended"' in started_in.read_text(encoding="utf-8", errors="replace"), 60)
+    time.sleep(10)
+    with open(watch_ws / "inbox.txt", "a", encoding="utf-8") as f:
+        f.write(f"{NO_TOOLS} Reply with exactly {woke}\n")
+    if wait_for(lambda: cursor_transcript_with(woke, since), TURN_WAIT):
+        record("cursor", "watched background shell wakes the agent", "pass", f"replied {woke}")
+    else:
+        record("cursor", "watched background shell wakes the agent", "fail", f"no reply with {woke} within {TURN_WAIT}s")
+    print("  You can close the second probe Cursor window now.")
 
 
 PROBES = {"claude": probe_claude, "codex": probe_codex, "gemini": probe_gemini, "grok": probe_grok,
@@ -426,10 +584,18 @@ def main(argv: list[str] | None = None) -> int:
     if argv[:1] == ["channel-server"]:
         channel_server(Path(argv[1]))
         return 0
+    if argv[:1] == ["cursor-stop-hook"]:
+        cursor_stop_hook(Path(argv[1]))
+        return 0
+    if argv[:1] == ["wait-line"]:
+        wait_line(Path(argv[1]))
+        return 0
     ap = argparse.ArgumentParser(description="Check whether each agent app can be woken from outside.")
     ap.add_argument("apps", nargs="*", metavar="APP", help=f"apps to probe, default all of: {', '.join(APPS)}")
     ap.add_argument("--thread", help="Codex: use this existing thread instead of creating one")
     ap.add_argument("--claude-model", default="haiku", help="Claude model for probe turns (default: haiku)")
+    ap.add_argument("--cursor-model", default="auto",
+                    help="Cursor model for probe turns (default: auto, which the Free plan includes; '' for your default)")
     ap.add_argument("--skip-live", action="store_true",
                     help="only run the background checks; open no interactive sessions")
     ap.add_argument("--no-spawn", dest="spawn", action="store_false",

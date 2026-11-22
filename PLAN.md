@@ -46,7 +46,12 @@
 - [x] Probe Claude Code: resume a session headless with a message [agent: claude]
 - [x] Probe Codex: queue a message into an existing thread [agent: claude]
 - [x] Probe Codex: queue wakes a live session, idle or busy [agent: claude]
-- [ ] Probe Cursor, Gemini CLI and Grok wake paths on the work computer
+- [ ] Probe Gemini CLI, Grok and the desktop apps on the work computer
 - [x] Record probe results in the architecture draft [agent: claude]
 - [x] Write a wake probe script to run on the work computer [agent: claude]
 - [x] Document how to run the wake probes [agent: claude]
+- [x] Probe Cursor CLI: stop hook follow-up wakes a session [agent: claude]
+- [x] Probe Cursor CLI: watched background shell wakes a session [agent: claude]
+- [x] Probe Cursor CLI: resume a chat headless [agent: claude]
+- [x] Add Cursor wake paths to the probe script [agent: claude]
+- [x] Rebuild the architecture canvas as an interactive status app [agent: claude]

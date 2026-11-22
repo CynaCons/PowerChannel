@@ -11,7 +11,8 @@ python probes/wake_probe.py --skip-live           # background checks only, no w
 python probes/wake_probe.py codex --thread <id>   # a thread you opened yourself, e.g. in Codex Desktop
 ```
 
-Run it from a folder the apps already trust, such as this repo. Each probe asks the agent to
+Run it in your own terminal window, from a folder the apps already trust, such as this repo.
+Windows it opens from a background or IDE-embedded shell may not show up. Each probe asks the agent to
 "reply with exactly" a random token, and passes only when that reply shows up in the app's own
 session log. Probe turns use no tools and touch no files. Results print as a table and are
 saved to `wake-probe-results-<date>.json` in the current folder; send that file back.
@@ -24,7 +25,7 @@ saved to `wake-probe-results-<date>.json` in the current folder; send that file 
 | Codex | `codex queue --thread <id> --message …` | `codex queue` to a closed thread, then `codex exec resume <id>` |
 | Gemini CLI | not tested: no known push | `gemini --resume latest` |
 | Grok | not tested: lists leader processes only | `grok -p --resume <id>` |
-| Cursor | not tested: no known trigger for IDE chats | `cursor-agent -p --resume <chat>` |
+| Cursor CLI | a stop hook in `.cursor/hooks.json` returns the message as `followup_message`; separately, the agent watches a background shell that prints the message | `cursor-agent -p --resume <chat>` |
 
 For the live checks, an idle session gets one message, then a long task followed one second
 later by a second message. The second check passes when that message waits for the long turn
@@ -39,11 +40,16 @@ to end and is then answered.
 - **Codex:** a new window opens on the probe thread. Answer any start-up prompt, wait for the
   input box, then press Enter in the probe's own terminal. To test Codex Desktop instead, open
   the probe thread there, or pass `--thread` with a Desktop thread id.
+- **Cursor:** two windows open in turn. The first needs nothing from you: its stop hook
+  carries the messages. In the second, approve the one background command if Cursor asks.
 - Close the probe windows when the summary prints.
 
 ## Limits
 
 - The Claude desktop Code tab can't start a session with a development channel, so only the
   CLI is checked. The desktop app needs the plugin route (`--channels`), which isn't tested.
-- Claude probe turns use `--claude-model haiku` by default. Codex, Gemini, Grok and Cursor use
-  each app's default model.
+- Claude probe turns use `--claude-model haiku` and Cursor turns `--cursor-model auto` (the
+  model Cursor's Free plan includes). Codex, Gemini and Grok use each app's default model.
+- Each headless Cursor call takes about 20 seconds end to end. One resume hung for minutes in
+  an early run, for no reason we found; the script now times it out instead of hanging.
+- The Cursor IDE isn't covered. Cursor documents the same hooks for IDE agent chats.
