@@ -1,0 +1,37 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.CynaCons/powerchannel",
+  "title": "PowerChannel",
+  "description": "Named channels so AI agents in different apps on one computer can message each other",
+  "repository": {
+    "url": "https://github.com/CynaCons/PowerChannel",
+    "source": "github"
+  },
+  "version": "0.5.0",
+  "packages": [
+    {
+      "registryType": "pypi",
+      "identifier": "powerchannel",
+      "version": "0.5.0",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "POWERCHANNEL_DB",
+          "description": "Path to the shared SQLite database. Every app must use the same one; the default is the per-user data folder.",
+          "isRequired": false,
+          "isSecret": false,
+          "format": "string"
+        },
+        {
+          "name": "POWERCHANNEL_MAX_WAIT",
+          "description": "Longest read wait in seconds (default 43200 = 12 h).",
+          "isRequired": false,
+          "isSecret": false,
+          "format": "number"
+        }
+      ]
+    }
+  ]
+}
