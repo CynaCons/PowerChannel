@@ -116,7 +116,31 @@ CREATE TABLE IF NOT EXISTS seen (
     updated REAL NOT NULL,
     PRIMARY KEY (reader, channel)
 );
+CREATE TABLE IF NOT EXISTS standby (
+    reader  TEXT NOT NULL,
+    channel TEXT NOT NULL,
+    route   TEXT NOT NULL,             -- how the wake is delivered: "codex" or "shell"
+    address TEXT NOT NULL DEFAULT '',  -- Codex thread id for the "codex" route
+    owner   INTEGER NOT NULL,          -- pid of the process that delivers the wake
+    since   REAL NOT NULL,
+    updated REAL NOT NULL,             -- refreshed by the owner while it is alive
+    PRIMARY KEY (reader, channel)
+);
 """
+
+STANDBY_FRESH_SECONDS = 30  # a standby row whose owner hasn't refreshed it for this long is stale
+STANDBY_KEEP_SECONDS = 24 * 3600  # stale rows are deleted on the next post after this long
+
+
+@dataclass(frozen=True)
+class Standby:
+    reader: str
+    channel: str
+    route: str
+    address: str
+    owner: int
+    since: float
+    updated: float
 
 
 class Board:
@@ -155,6 +179,7 @@ class Board:
         self._db.execute("BEGIN IMMEDIATE")
         try:
             self._db.execute("DELETE FROM messages WHERE created < ?", (now - RETENTION_SECONDS,))
+            self._db.execute("DELETE FROM standby WHERE updated < ?", (now - STANDBY_KEEP_SECONDS,))
             cur = self._db.execute(
                 "INSERT INTO messages (channel, author, text, created) VALUES (?, ?, ?, ?)",
                 (channel, author, text, now),
@@ -260,6 +285,58 @@ class Board:
             ).fetchall()[::-1]
         return [Message(*r) for r in rows]
 
+    # -- standby ---------------------------------------------------------
+    # An agent on standby has ended its turn and asked to be woken by the next message.
+    # The owner process (the app's PowerChannel server for Codex, a `powerchannel wait`
+    # command for apps woken by a background shell) delivers the wake and refreshes the row.
+
+    def set_standby(self, reader: str, channel: str, route: str, address: str, owner: int) -> None:
+        reader, channel = clean_name(reader, "name"), clean_name(channel, "channel")
+        now = time.time()
+        self._write(
+            "INSERT INTO standby (reader, channel, route, address, owner, since, updated) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT (reader, channel) DO UPDATE SET "
+            "route = excluded.route, address = excluded.address, owner = excluded.owner, "
+            "since = excluded.since, updated = excluded.updated",
+            (reader, channel, route, address, owner, now, now),
+        )
+
+    def get_standby(self, reader: str, channel: str) -> Standby | None:
+        row = self._db.execute(
+            "SELECT reader, channel, route, address, owner, since, updated FROM standby "
+            "WHERE reader = ? AND channel = ?",
+            (clean_name(reader, "name"), clean_name(channel, "channel")),
+        ).fetchone()
+        return Standby(*row) if row else None
+
+    def clear_standby(self, reader: str, channel: str, owner: int | None = None) -> None:
+        """Remove the standby row, only if `owner` still owns it when given."""
+        reader, channel = clean_name(reader, "name"), clean_name(channel, "channel")
+        if owner is None:
+            self._write("DELETE FROM standby WHERE reader = ? AND channel = ?", (reader, channel))
+        else:
+            self._write("DELETE FROM standby WHERE reader = ? AND channel = ? AND owner = ?",
+                        (reader, channel, owner))
+
+    def standby_rows(self, owner: int | None = None, route: str | None = None) -> list[Standby]:
+        sql = "SELECT reader, channel, route, address, owner, since, updated FROM standby WHERE 1 = 1"
+        params: list = []
+        if owner is not None:
+            sql += " AND owner = ?"
+            params.append(owner)
+        if route is not None:
+            sql += " AND route = ?"
+            params.append(route)
+        return [Standby(*r) for r in self._db.execute(sql + " ORDER BY since", params).fetchall()]
+
+    def touch_standby(self, owner: int) -> None:
+        """The owner is alive: refresh every row it owns."""
+        self._write("UPDATE standby SET updated = ? WHERE owner = ?", (time.time(), owner))
+
+    @staticmethod
+    def is_fresh(row: Standby) -> bool:
+        return row.updated > time.time() - STANDBY_FRESH_SECONDS
+
     # -- overview --------------------------------------------------------
 
     def channels(self) -> list[dict]:
@@ -278,7 +355,10 @@ class Board:
                 (channel, since))}
             names |= {r[0] for r in self._db.execute(
                 "SELECT reader FROM seen WHERE channel = ? AND updated > ?", (channel, since))}
+            fresh = time.time() - STANDBY_FRESH_SECONDS
+            standby = sorted(r[0] for r in self._db.execute(
+                "SELECT reader FROM standby WHERE channel = ? AND updated > ?", (channel, fresh)))
             out.append({"channel": channel, "messages": count, "last": Message(*last),
-                        "active": sorted(names)})
+                        "active": sorted(names | set(standby)), "standby": standby})
         out.sort(key=lambda c: c["last"].created, reverse=True)
         return out

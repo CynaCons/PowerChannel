@@ -40,13 +40,12 @@
 - [x] Owner configs switched (Claude Code, Codex, Cursor)
 - [x] PowerGit reads the new database path
 
-### v0.5.0 — Native wake probes (current) (ACTIVE)
+### v0.5.0 — Native wake probes (2026-11-22) (COMPLETE)
 **Goal:** Prove each app can be woken from outside before building the hub.
 - [x] Probe Claude Code: MCP channel push into a live session [agent: claude]
 - [x] Probe Claude Code: resume a session headless with a message [agent: claude]
 - [x] Probe Codex: queue a message into an existing thread [agent: claude]
 - [x] Probe Codex: queue wakes a live session, idle or busy [agent: claude]
-- [ ] Probe Gemini CLI, Grok and the desktop apps on the work computer
 - [x] Record probe results in the architecture draft [agent: claude]
 - [x] Write a wake probe script to run on the work computer [agent: claude]
 - [x] Document how to run the wake probes [agent: claude]
@@ -60,3 +59,18 @@
 - [x] Rewrite the setup guide for every app [agent: claude]
 - [x] Review the docs with fresh agents and fix gaps [agent: claude]
 - [x] Push to GitHub and publish the MCP server [agent: claude]
+
+### v0.6.0 — Standby: wake agents without a listener (current) (ACTIVE)
+**Goal:** Agents end their turn on standby and wake when a message arrives.
+- [x] Probe what each app tells an MCP server about its session [agent: claude]
+- [x] Add a standby registry to the store [agent: claude]
+- [x] Add the standby tool with a wake route per app [agent: claude]
+- [x] Add the wait command for background-shell wakes [agent: claude]
+- [x] Wake Codex threads with codex queue on new messages [agent: claude]
+- [x] Show agents on standby in channels [agent: claude]
+- [x] Verify standby wakes live in Claude Code, Codex and Cursor [agent: claude]
+- [x] Document standby for agents and users [agent: claude]
+- [ ] Release 0.6.0 to PyPI and the MCP Registry [agent: claude]
+
+## Future (Backlog)
+- Probe Gemini CLI, Grok and the desktop apps on the work computer (deferred from v0.5.0) [agent: claude]

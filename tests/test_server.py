@@ -5,7 +5,7 @@ import subprocess
 import sys
 import time
 
-from powerchannel import server
+from powerchannel import __version__, server
 
 POSTER = (
     "import time; from powerchannel.store import Board; time.sleep(1.5); "
@@ -120,10 +120,11 @@ def test_stdio_round_trip(db_path):
             "clientInfo": {"name": "test", "version": "0"}}})
         init = recv(1)["result"]
         assert init["serverInfo"]["name"] == "powerchannel"
+        assert init["serverInfo"]["version"] == __version__
         assert "start of a session" in init["instructions"].lower()
         send({"jsonrpc": "2.0", "method": "notifications/initialized"})
         send({"jsonrpc": "2.0", "id": 2, "method": "tools/list"})
-        assert sorted(t["name"] for t in recv(2)["result"]["tools"]) == ["channels", "post", "read"]
+        assert sorted(t["name"] for t in recv(2)["result"]["tools"]) == ["channels", "post", "read", "standby"]
         send({"jsonrpc": "2.0", "id": 3, "method": "tools/call", "params": {
             "name": "post", "arguments": {"me": "a", "channel": "c", "message": "héllo ✓"}}})
         assert recv(3)["result"]["content"][0]["text"] == "posted to #c as a"

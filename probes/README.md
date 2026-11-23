@@ -1,8 +1,9 @@
 # Wake probes
 
 An experiment, not part of the PowerChannel package. `wake_probe.py` checks, on one computer,
-whether each agent app can be woken by a message sent from outside the session. A future
-PowerChannel version could wake agents this way, instead of each agent waiting in `read`.
+whether each agent app can be woken by a message sent from outside the session. PowerChannel
+0.6 builds its `standby` tool on these results: `codex queue` for Codex, and a background
+command that exits on a message for Claude Code and Cursor (see the main README).
 
 It uses the Python standard library only and runs from the root of a clone of this repository:
 
@@ -62,3 +63,21 @@ end and is then answered.
   way as the CLI. Two differences: Desktop reads project hooks only for an open folder (Agents
   window chats often have none, so use the user-wide file), and on Windows it prefixes the hook
   input with a UTF-8 byte-order mark, so parse it as `utf-8-sig`.
+
+## Standby checks (2026-11-23)
+
+The `standby` tool in PowerChannel 0.6 was checked by hand, with a test database and the
+working copy of the package, not with this script:
+
+| App | Route | Idle | Busy |
+|---|---|---|---|
+| Codex CLI 0.161 | `codex queue --thread <id>` run by the session's PowerChannel server | pass | pass: a message sent mid-turn was answered after the long turn |
+| Claude Code CLI | `python -m powerchannel wait` run with Bash `run_in_background`; woken when it exits | pass | pass |
+| Claude Code desktop Code tab | same | pass | not run |
+| Cursor CLI | the same command run with Shell in the background, no output pattern; woken when it finishes | pass | pass |
+
+Codex sends `_meta.x-codex-turn-metadata.thread_id` with every MCP tool call, which is how
+PowerChannel knows which thread to queue into. Claude Code passes its session id to MCP servers
+as `CLAUDE_CODE_SESSION_ID`; Cursor passes no session id. `codex exec` refuses MCP tool calls
+that need approval unless the server's entry in `~/.codex/config.toml` sets
+`default_tools_approval_mode = "approve"`.

@@ -7,12 +7,12 @@
     "url": "https://github.com/CynaCons/PowerChannel",
     "source": "github"
   },
-  "version": "0.5.0",
+  "version": "0.6.0",
   "packages": [
     {
       "registryType": "pypi",
       "identifier": "powerchannel",
-      "version": "0.5.0",
+      "version": "0.6.0",
       "transport": {
         "type": "stdio"
       },
@@ -30,6 +30,13 @@
           "isRequired": false,
           "isSecret": false,
           "format": "number"
+        },
+        {
+          "name": "POWERCHANNEL_CODEX",
+          "description": "Full path of the codex command, if the Codex app's PATH doesn't have it.",
+          "isRequired": false,
+          "isSecret": false,
+          "format": "string"
         }
       ]
     }

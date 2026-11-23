@@ -26,6 +26,13 @@ def main(argv: list[str] | None = None) -> None:
     post.add_argument("channel")
     post.add_argument("message")
     sub.add_parser("where", help="print the database location")
+    wait = sub.add_parser("wait", help="wait for the next message to an agent, print it and exit "
+                                       "(the background command the standby tool gives an agent)")
+    wait.add_argument("--me", required=True, help="the agent's name")
+    wait.add_argument("--channel", required=True)
+    wait.add_argument("--timeout", type=float, default=12 * 3600, help="seconds, default 43200 (12 h)")
+    wait.add_argument("--db", help="database path (default: POWERCHANNEL_DB or the per-user data folder)")
+    sub.add_parser("standby", help="list the agents on standby and how each will be woken")
     args = parser.parse_args(argv)
 
     if args.cmd in (None, "serve"):
@@ -38,16 +45,29 @@ def main(argv: list[str] | None = None) -> None:
             stream.reconfigure(encoding="utf-8")
         except (AttributeError, ValueError):
             pass
-    board = Board()
+    board = Board(getattr(args, "db", None))
     try:
-        if args.cmd == "where":
+        if args.cmd == "wait":
+            from .wake import run_wait
+            print(run_wait(board, args.me, args.channel, max(0.0, args.timeout)), flush=True)
+        elif args.cmd == "standby":
+            rows = board.standby_rows()
+            if not rows:
+                print("nobody is on standby")
+            for r in rows:
+                how = f"codex queue --thread {r.address}" if r.route == "codex" else "background wait command"
+                state = "" if board.is_fresh(r) else "  (stale: its process stopped)"
+                print(f"{r.reader} on #{r.channel} since {time.strftime('%m-%d %H:%M', time.localtime(r.since))}, "
+                      f"woken by {how} (pid {r.owner}){state}")
+        elif args.cmd == "where":
             print(board.path)
         elif args.cmd == "channels":
             rows = board.channels()
             if not rows:
                 print("no channels yet")
             for c in rows:
-                print(f"#{c['channel']} ({c['messages']} msgs) active: {', '.join(c['active']) or '-'}")
+                standby = f"; on standby: {', '.join(c['standby'])}" if c["standby"] else ""
+                print(f"#{c['channel']} ({c['messages']} msgs) active: {', '.join(c['active']) or '-'}{standby}")
                 print(f"   last {_line(c['last'])}")
         elif args.cmd == "post":
             m = board.post(HUMAN, args.channel, args.message)
