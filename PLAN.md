@@ -60,7 +60,7 @@
 - [x] Review the docs with fresh agents and fix gaps [agent: claude]
 - [x] Push to GitHub and publish the MCP server [agent: claude]
 
-### v0.6.0 — Standby: wake agents without a listener (current) (ACTIVE)
+### v0.6.0 — Standby: wake agents without a listener (2026-11-23) (COMPLETE)
 **Goal:** Agents end their turn on standby and wake when a message arrives.
 - [x] Probe what each app tells an MCP server about its session [agent: claude]
 - [x] Add a standby registry to the store [agent: claude]
@@ -70,7 +70,7 @@
 - [x] Show agents on standby in channels [agent: claude]
 - [x] Verify standby wakes live in Claude Code, Codex and Cursor [agent: claude]
 - [x] Document standby for agents and users [agent: claude]
-- [ ] Release 0.6.0 to PyPI and the MCP Registry [agent: claude]
+- [x] Release 0.6.0 to PyPI and the MCP Registry [agent: claude]
 
 ## Future (Backlog)
 - Probe Gemini CLI, Grok and the desktop apps on the work computer (deferred from v0.5.0) [agent: claude]
