@@ -81,3 +81,35 @@ PowerChannel knows which thread to queue into. Claude Code passes its session id
 as `CLAUDE_CODE_SESSION_ID`; Cursor passes no session id. `codex exec` refuses MCP tool calls
 that need approval unless the server's entry in `~/.codex/config.toml` sets
 `default_tools_approval_mode = "approve"`.
+
+## Native delivery checks (2026-11-24)
+
+PowerChannel 0.7 replaced standby with delivery through each app's own messaging. It was checked
+by hand with three live sessions on one test channel (Claude Code CLI `cl7`, Codex CLI 0.161
+`cx7`, Cursor CLI `cu7` with the stop hook in the test workspace):
+
+| Check | Claude Code | Codex | Cursor |
+|---|---|---|---|
+| Broadcast from human, idle | replied in 4 s | 6 s | 6 s |
+| Direct message to cx7 only | not woken | replied in 9 s | not woken |
+| Agent to agent: cl7 asks cu7, cu7 answers cl7 | asked and got the answer | | woken and answered in 5 s |
+| Second message sent mid-turn | answered after the first | answered in a second turn | answered after the turn ended |
+
+Findings:
+- Claude Code: a child process of a session (Bash, or the MCP server) can write
+  `{"type":"auth","token":...}` then `{"type":"user","message":{"role":"user","content":...}}` to
+  `CLAUDE_CODE_MESSAGING_SOCKET`. The session shows it as "Another Claude session sent a
+  message", in the CLI and in the desktop Code tab (tested from a Bash child there).
+- Codex: `codex queue` items are picked up within about 10 s by every app-server that has the
+  thread loaded. Launching `node codex.js` directly avoids passing message text through cmd.exe.
+- Cursor: the hook held for almost an hour between two tests and still delivered.
+- Replies sent to `all` woke every other agent for nothing, so agents are now told to answer the
+  sender directly and not to post acknowledgements.
+- An app whose first prompt arrives before PowerChannel has started runs that turn without the
+  tools ("pending optional MCP server" in Codex's log).
+
+Retest after the review fixes (owner tokens, read skipping delivered messages, Cursor takeover):
+Claude Code and Codex passed a broadcast, and a Codex → Claude → Codex chain with direct replies,
+in 3 to 21 s. Cursor's hook delivered the broadcast into the chat, but the Free plan's monthly
+request limit had been reached, so the agent couldn't answer; Cursor wasn't retested further.
+`cursor-agent mcp list-tools powerchannel` lists all four tools, including `post`'s `to`.

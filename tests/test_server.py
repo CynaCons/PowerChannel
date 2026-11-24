@@ -21,7 +21,7 @@ def call(name, **args):
 
 def test_post_read_channels(db_path):
     assert "no new messages" in call("read", me="b", channel="c")
-    assert call("post", me="a", channel="c", message="hi") == "posted to #c as a"
+    assert call("post", me="a", channel="c", message="hi").startswith("posted to #c as a (to all)")
     out = call("read", me="b", channel="c")
     assert out.startswith("you are b on #c: 1 new") and "a: hi" in out
     assert "#c (1 msgs) active: a, b" in call("channels")
@@ -127,7 +127,7 @@ def test_stdio_round_trip(db_path):
         assert sorted(t["name"] for t in recv(2)["result"]["tools"]) == ["channels", "post", "read", "standby"]
         send({"jsonrpc": "2.0", "id": 3, "method": "tools/call", "params": {
             "name": "post", "arguments": {"me": "a", "channel": "c", "message": "héllo ✓"}}})
-        assert recv(3)["result"]["content"][0]["text"] == "posted to #c as a"
+        assert recv(3)["result"]["content"][0]["text"].startswith("posted to #c as a (to all)")
         send({"jsonrpc": "2.0", "id": 4, "method": "tools/call", "params": {
             "name": "read", "arguments": {"me": "b", "channel": "c"}}})
         assert "a: héllo ✓" in recv(4)["result"]["content"][0]["text"]

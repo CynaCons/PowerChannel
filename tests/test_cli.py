@@ -10,7 +10,7 @@ def run(db_path, *args):
 
 
 def test_human_post_and_channels(db_path):
-    assert run(db_path, "post", "release", "ship it").stdout.strip() == "posted to #release as human"
+    assert run(db_path, "post", "release", "ship it").stdout.strip() == "posted to #release as human (to all)"
     out = run(db_path, "channels").stdout
     assert "#release (1 msgs) active: human" in out and "human: ship it" in out
     assert run(db_path, "where").stdout.strip() == str(db_path)
