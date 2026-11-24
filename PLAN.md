@@ -72,7 +72,7 @@
 - [x] Document standby for agents and users [agent: claude]
 - [x] Release 0.6.0 to PyPI and the MCP Registry [agent: claude]
 
-### v0.7.0 — Native delivery: messages arrive in each session (current) (ACTIVE)
+### v0.7.0 — Native delivery: messages arrive in each session (2026-11-24) (COMPLETE)
 **Goal:** Messages reach agents through each app's own messaging, with no standby call.
 - [x] Prove delivery into a Claude Code session inbox [agent: claude]
 - [x] Run Codex queue without cmd.exe for safe message text [agent: claude]
@@ -83,7 +83,8 @@
 - [x] Add the Cursor hook installer and CLI commands [agent: claude]
 - [x] Verify delivery live in Claude Code, Codex and Cursor [agent: claude]
 - [x] Rewrite docs for native delivery and review them cold [agent: claude]
-- [ ] Release 0.7.0 to PyPI and the MCP Registry [agent: claude]
+- [x] Release 0.7.0 to PyPI and the MCP Registry [agent: claude]
 
 ## Future (Backlog)
 - Probe Gemini CLI, Grok and the desktop apps on the work computer (deferred from v0.5.0) [agent: claude]
+- Retest Cursor delivery after the review fixes once Cursor quota resets [agent: claude]
