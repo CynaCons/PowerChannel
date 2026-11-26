@@ -85,6 +85,12 @@
 - [x] Rewrite docs for native delivery and review them cold [agent: claude]
 - [x] Release 0.7.0 to PyPI and the MCP Registry [agent: claude]
 
+### v0.7.1 — 12-hour default wait (2026-11-26)
+**Goal:** Agents that wait for a reply wait 12 h by default, not 1 h.
+- [x] Recommend wait_seconds=43200 in the server instructions and agent guide [agent: claude]
+- [x] Codex standby hint suggests the configured maximum wait [agent: claude]
+- [x] Test the 12 h recommendation and the POWERCHANNEL_MAX_WAIT override [agent: claude]
+
 ## Future (Backlog)
 - Probe Gemini CLI, Grok and the desktop apps on the work computer (deferred from v0.5.0) [agent: claude]
 - Retest Cursor delivery after the review fixes once Cursor quota resets [agent: claude]

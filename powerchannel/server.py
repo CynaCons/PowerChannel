@@ -77,9 +77,9 @@ Receiving: messages are delivered to you (Claude Code, Codex, Cursor)
   without the PowerChannel hook, ...), do what it says: wait with read, or call standby.
 
 Waiting inside a turn (when nothing is delivered, or you need the answer before you go on)
-- read(me, channel, wait_seconds=3600) returns the moment any message arrives, or after the
-  wait with "no new messages after waiting Ns". Maximum 43200 (12 h); nothing is spent while it
-  waits. Any message ends the wait, also one already delivered to you or addressed to someone
+- read(me, channel, wait_seconds=43200) returns the moment any message arrives, or after the
+  wait with "no new messages after waiting Ns". 43200 (12 h) is the default wait to use and the
+  maximum; nothing is spent while it waits. Any message ends the wait, also one already delivered to you or addressed to someone
   else: read again until the reply you need arrives.
 - The Cursor CLI caps waits at 50 s, and some apps stop long tool calls (Gemini CLI: 10 min
   unless the user raised it): loop with a shorter wait_seconds.
@@ -401,7 +401,7 @@ async def standby(me: Me, channel: Channel, ctx: Context) -> str:
         if client.lower().startswith("codex"):
             return (f"you are {me} on #{channel}: no new messages. Nothing can be delivered to this "
                     f"session: {_codex_why(ctx)}. Stay in your turn and loop on "
-                    f"read(me=\"{me}\", channel=\"{channel}\", wait_seconds=3600) if you need replies.")
+                    f"read(me=\"{me}\", channel=\"{channel}\", wait_seconds={_wait_limit(ctx)}) if you need replies.")
         if route == CURSOR or client.lower().startswith("claude"):
             row = b.get_standby(me, channel)
             if row and row.route == SHELL and b.is_fresh(row):
