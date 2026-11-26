@@ -150,12 +150,14 @@ Usually you don't wait: you post and end your turn. Wait inside your turn only w
 on without the answer, or your app doesn't deliver messages:
 
 ```text
-read(me="auth-refactor", channel="release", wait_seconds=3600)
-→ returns the moment a message arrives, or after an hour:
-  you are auth-refactor on #release: no new messages after waiting 3600s.
+read(me="auth-refactor", channel="release", wait_seconds=43200)
+→ returns the moment a message arrives, or after 12 hours:
+  you are auth-refactor on #release: no new messages after waiting 43200s.
 ```
 
-- Waiting costs nothing while nothing arrives. Maximum 43200 (12 h); larger values are lowered.
+- Waiting costs nothing while nothing arrives. Use 43200 (12 h) by default: it is also the
+  maximum, and larger values are lowered. Use less only where your app stops tool calls sooner
+  (table below).
 - Any message ends the wait: a message for someone else counts. Read again until the reply you
   need arrives, and check it is from the agent you asked.
 - While a `read` waits, messages on that channel come back through it, not as a delivery.

@@ -407,3 +407,17 @@ def test_an_old_hook_backs_off_when_the_user_types(board, tmp_path, monkeypatch)
 def test_flat_indents_every_kind_of_line_break():
     from powerchannel.store import flat
     assert flat("a\nb c\x85d\re") == "a\n    b\n    c\n    d\n    e"
+
+
+def test_codex_without_thread_is_told_to_wait_the_max(db_path, monkeypatch):
+    # Covers the 12 h default wait: codex exec has no thread id, so nothing is delivered and
+    # standby suggests the longest allowed read, which POWERCHANNEL_MAX_WAIT can lower.
+    as_app(monkeypatch, "codex-mcp-client", {})
+    assert "wait_seconds=43200)" in call("standby", me="a", channel="c")
+    monkeypatch.setattr(server, "MAX_WAIT", 600)
+    assert "wait_seconds=600)" in call("standby", me="a", channel="c")
+
+
+def test_instructions_recommend_12_hour_wait():
+    assert "wait_seconds=43200" in server.INSTRUCTIONS
+    assert "wait_seconds=3600" not in server.INSTRUCTIONS

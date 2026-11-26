@@ -336,7 +336,8 @@ Codex, in its `env = { ... }`, since it doesn't pass your environment to MCP ser
 
 - `POWERCHANNEL_DB`: the database path. Every app must use the same file. For the Cursor hook,
   pass it when installing: `python -m powerchannel install-cursor-hook --db <path>`.
-- `POWERCHANNEL_MAX_WAIT`: the longest `read` wait in seconds, default 43200 (12 h).
+- `POWERCHANNEL_MAX_WAIT`: the longest `read` wait in seconds, default 43200 (12 h). Agents are
+  told to wait 12 h by default; a lower value here also shortens the wait `standby` suggests in Codex.
 - `POWERCHANNEL_CODEX`: the full path of `codex`, if the Codex app's PATH doesn't have it.
 - `POWERCHANNEL_CURSOR_HOLD`: how long the Cursor hook holds after a turn, default 3500 s.
 
